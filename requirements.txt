@@ -1,0 +1,14 @@
+# Install FastAPI and dependencies
+fastapi
+uvicorn
+python-multipart
+
+
+# Install LangGraph and related libraries
+langgraph
+langchain
+langchain-community
+langsmith
+python-dotenv
+langchain-google-genai
+langchain-tavily

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IIT JEE AI Tutor</title>
+    
+    <link rel="stylesheet" href="../static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">
+                <div class="logo-icon">📚</div>
+                <div class="logo-text">
+                    <h1>IIT JEE AI Tutor</h1>
+                    <p>Your personal study companion for Physics, Chemistry & Mathematics</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Subject Tabs and Info Message Row -->
+        <div class="subject-tabs-row" style="display: flex; align-items: center; gap: 18px; margin-bottom: 12px;">
+            <div class="subject-tabs">
+                <button class="tab">⚡ Physics</button>
+                <button class="tab">🧪 Chemistry</button>
+                <button class="tab active">📊 Mathematics</button>
+            </div>
+            <div class="subject-tabs-info stylish-info" style="margin-bottom:0;">
+                <span class="info-icon">👈 </span>
+                <span class="info-text">Choose your subject teacher by clicking a tab!</span>
+            </div>
+        </div>
+
+        <!-- Examples Section -->
+        <div class="examples-section">
+            <h2>Get Started with These Examples</h2>
+            <p>Click on any question to see how I can help you learn</p>
+            
+            <div class="examples-grid">
+                <!-- Physics Column -->
+                <div class="example-column">
+                    <div class="column-header">
+                        <span class="subject-icon physics">⚡</span>
+                        <h3>Physics</h3>
+                    </div>
+                    <div class="example-item">
+                        <span class="example-bullet">○</span>
+                        <span>Explain Newton's laws of motion with examples</span>
+                    </div>
+                    <div class="example-item">
+                        <span class="example-bullet">○</span>
+                        <span>How do you solve projectile motion problems?</span>
+                    </div>
+                    <div class="example-item">
+                        <span class="example-bullet">○</span>
+                        <span>What is the concept of electric field and potential?</span>
+                    </div>
+                </div>
+
+                <!-- Chemistry Column -->
+                <div class="example-column">
+                    <div class="column-header">
+                        <span class="subject-icon chemistry">🧪</span>
+                        <h3>Chemistry</h3>
+                    </div>
+                    <div class="example-item">
+                        <span class="example-bullet">○</span>
+                        <span>Explain organic reaction mechanisms</span>
+                    </div>
+                    <div class="example-item">
+                        <span class="example-bullet">○</span>
+                        <span>How do you balance chemical equations?</span>
+                    </div>
+                    <div class="example-item">
+                        <span class="example-bullet">○</span>
+                        <span>What are the principles of chemical bonding?</span>
+                    </div>
+                </div>
+
+                <!-- Mathematics Column -->
+                <div class="example-column">
+                    <div class="column-header">
+                        <span class="subject-icon mathematics">📊</span>
+                        <h3>Mathematics</h3>
+                    </div>
+                    <div class="example-item">
+                        <span class="example-bullet">○</span>
+                        <span>How to solve limits and derivatives?</span>
+                    </div>
+                    <div class="example-item">
+                        <span class="example-bullet">○</span>
+                        <span>Explain integration techniques</span>
+                    </div>
+                    <div class="example-item">
+                        <span class="example-bullet">○</span>
+                        <span>What are the properties of matrices?</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Section -->
+        <div class="chat-section">
+            <div class="chat-message bot-message">
+                <div class="message-avatar">🤖</div>
+                <div class="message-content">
+                    <p>Hello! I'm your IIT JEE AI tutor. I'm here to help you with Physics, Chemistry, and Mathematics questions. Ask me anything - from concept explanations to solving complex problems!</p>
+                    <span class="message-time">03:40 PM</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Input Section -->
+        <div class="input-section">
+            <div class="input-container">
+                <input type="text" id="messageInput" placeholder="Ask any IIT JEE question - concepts, problems, explanations...">
+                <button class="send-button" onclick="sendMessage()">
+                    <span>➤</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../static/script.js"></script>
+</body>
+</html>
