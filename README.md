@@ -90,6 +90,21 @@ A conversational AI teacher for IIT JEE (Physics, Chemistry, Mathematics) that a
 
 ---
 
+## New Functionalities
+
+### In-Memory Cache
+- The AI tutor uses an in-memory cache to store responses to repeated questions during a session.
+- If a student asks the same question again, the cached answer is returned instantly, reducing computation and API usage.
+- This is implemented in `src/ai_iit_teacher.py` and is automatic—no setup required.
+
+### Rate Limiting
+- To prevent abuse and automated spamming, the API uses rate limiting via the [`slowapi`](https://pypi.org/project/slowapi/) package.
+- By default, each user (IP address) is limited to **5 requests per minute** to the `/api/chat` endpoint.
+- If the limit is exceeded, the API returns a `429 Too Many Requests` error.
+- You can adjust the rate limit in `app.py` by changing the `@limiter.limit("5/minute")` decorator.
+
+---
+
 ## License
 MIT License
 

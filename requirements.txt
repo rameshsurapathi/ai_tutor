@@ -12,3 +12,13 @@ langsmith
 python-dotenv
 langchain-google-genai
 langchain-tavily
+
+# Install libraries for vector databases and embeddings
+chromadb
+sentence_transformers
+tqdm
+PyMuPDF
+slowapi
+
+# Install libraries for Redis and other utilities
+redis

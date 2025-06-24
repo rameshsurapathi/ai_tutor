@@ -43,6 +43,89 @@ async function sendMessage() {
     }
 }
 
+let isAgentBusy = false;
+
+async function sendMessageStream() {
+    if (isAgentBusy) return;
+    const input = document.getElementById('messageInput');
+    const message = input.value.trim();
+    if (message) {
+        isAgentBusy = true;
+        input.disabled = true;
+        disableSampleQuestions();
+        addMessage(message, 'user');
+        input.value = '';
+        showTypingIndicator(); // Show immediately
+        try {
+            const response = await fetch('/api/chat/stream', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    message: message,
+                    subject: getCurrentSubject()
+                })
+            });
+            if (!response.ok) {
+                removeTypingIndicator();
+                isAgentBusy = false;
+                input.disabled = false;
+                enableSampleQuestions();
+                if (response.status === 429) {
+                    addMessage('Too Many Requests. Please try again after a minute.', 'bot');
+                } else {
+                    addMessage('Sorry, I\'m having trouble connecting. Please try again.', 'bot');
+                }
+                return;
+            }
+            const reader = response.body.getReader();
+            let botMessage = '';
+            let messageDiv = null;
+            let firstChunk = true;
+            function addOrUpdateBotMessage(chunk) {
+                if (!messageDiv) {
+                    messageDiv = document.createElement('div');
+                    messageDiv.className = 'chat-message bot-message';
+                    messageDiv.innerHTML = `
+                        <div class="message-avatar">👨‍🏫</div>
+                        <div class="message-content">
+                            <div class="response-text"></div>
+                            <span class="message-time">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                        </div>
+                    `;
+                    document.querySelector('.chat-section').appendChild(messageDiv);
+                }
+                botMessage += chunk;
+                messageDiv.querySelector('.response-text').innerHTML = botMessage.replace(/\n/g, '<br>');
+                document.querySelector('.chat-section').scrollTop = document.querySelector('.chat-section').scrollHeight;
+            }
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                const chunk = new TextDecoder().decode(value);
+                if (firstChunk) {
+                    removeTypingIndicator(); // Remove only after first chunk
+                    firstChunk = false;
+                }
+                addOrUpdateBotMessage(chunk);
+            }
+        } catch (error) {
+            removeTypingIndicator();
+            if (error && error.message && error.message.includes('429')) {
+                addMessage('Too Many Requests. Please try again after a minute.', 'bot');
+            } else {
+                addMessage('Sorry, I\'m having trouble connecting. Please try again.', 'bot');
+            }
+        } finally {
+            isAgentBusy = false;
+            input.disabled = false;
+            enableSampleQuestions();
+            clearSampleHighlight();
+        }
+    }
+}
+
 function getCurrentSubject() {
     const activeTab = document.querySelector('.tab.active');
     const tabText = activeTab.textContent.toLowerCase();
@@ -117,10 +200,35 @@ function addMessage(text, sender) {
     chatSection.scrollTop = chatSection.scrollHeight;
 }
 
+function disableSampleQuestions() {
+    document.querySelectorAll('.example-item').forEach(item => {
+        item.classList.add('disabled-sample');
+        item.style.pointerEvents = 'none';
+    });
+}
+function enableSampleQuestions() {
+    document.querySelectorAll('.example-item').forEach(item => {
+        item.classList.remove('disabled-sample');
+        item.style.pointerEvents = '';
+    });
+}
+function highlightSample(item) {
+    clearSampleHighlight();
+    item.classList.add('selected-sample');
+}
+function clearSampleHighlight() {
+    document.querySelectorAll('.example-item.selected-sample').forEach(item => {
+        item.classList.remove('selected-sample');
+    });
+}
+
 // Handle Enter key press
+// Default to streaming for best experience
+// You can switch to sendMessage() for non-streaming if needed
+
 document.getElementById('messageInput').addEventListener('keypress', function(e) {
     if (e.key === 'Enter') {
-        sendMessage();
+        sendMessageStream();
     }
 });
 
@@ -129,9 +237,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const exampleItems = document.querySelectorAll('.example-item');
     exampleItems.forEach(item => {
         item.addEventListener('click', function() {
+            if (isAgentBusy) return;
             const questionText = this.querySelector('span:last-child').textContent;
             document.getElementById('messageInput').value = questionText;
-            sendMessage();
+            highlightSample(this);
+            sendMessageStream();
         });
     });
     

@@ -33,6 +33,16 @@ from src.subject_data import TOPIC_EXAMPLES, SAMPLE_QUESTIONS
 # This is used to securely load the API key.
 load_dotenv()
 
+# Import LangSmith for monitoring and debugging
+from src.langsmith_debug import LANGSMITH_API_KEY, LANGSMITH_PROJECT, LANGSMITH_ENDPOINT, LANGSMITH_TRACING
+
+# setting up redis for caching
+import redis
+redis_client = redis.Redis(host='localhost', port=6379, db=0)
+
+# Import the retrieval function to fetch relevant textbook chunks
+# This is used to enhance the agent's knowledge base with textbook content.
+from src.rag_engine import retrieve_relevant_chunks
 
 # --- Define the structure of the agent's state ---
 # AgentState is a TypedDict that defines the data structure passed between nodes in the graph.
@@ -55,9 +65,6 @@ class IIT_Teacher():
     processing a student's question through a predefined graph of operations.
     """
 
-    # --- Add a simple in-memory cache for repeated questions ---
-    _response_cache = {}
-
     def __init__(self,subject, api_key:str):
         """
         Initializes the IIT_Teacher agent.
@@ -66,9 +73,10 @@ class IIT_Teacher():
             subject (str): The subject the teacher will specialize in (e.g., 'maths', 'physics').
             api_key (str): The API key for the language model service.
         """
+
         # Initialize the language model (LLM) from Google GenAI.
-        self.llm = init_chat_model("google_genai:gemini-2.5-flash", temperature=0.1)
-        
+        self.llm = init_chat_model(os.getenv("LLM_MODEL"), temperature=0.1)
+
         # Store the subject and create a dynamic system prompt based on it.
         self.subject = subject.lower()
         self.system_prompt = system_prompt_template.format(subject=self.subject.capitalize())
@@ -149,13 +157,7 @@ class IIT_Teacher():
         question = state['question']
         subject = self.subject
         examples = TOPIC_EXAMPLES.get(subject, "")
-        prompt = (
-            f"As an IIT {subject} teacher, analyze this student's question and identify the main topic and subtopic.\n"
-            f"Question: {question}\n\n"
-            "1. What is the student really asking? What concept are they struggling with? Respond in one clear sentence.\n"
-            "2. Identify the main topic and subtopic. Format: Topic: [Main Topic] | Subtopic: [Specific Concept]\n"
-            f"{examples}"
-        )
+        prompt = analyze_question_prompt.format(subject=subject, question=question) + "\n" + identify_topic_prompt.format(subject=subject, question=question, examples=examples)
         response = self.llm.invoke([
             SystemMessage(content=self.system_prompt),
             HumanMessage(content=prompt)
@@ -172,8 +174,7 @@ class IIT_Teacher():
                 analysis = line.strip()
         state["messages"] = [SystemMessage(content=self.system_prompt), HumanMessage(content=prompt), response]
         state["topic_identified"] = topic
-        # Optionally store the analysis if you want to use it later
-        state["analysis"] = analysis
+        
         return state
 
     # --- Node 3 Combined: Create explanation and analogy together ---
@@ -183,15 +184,7 @@ class IIT_Teacher():
         """
         question = state['question']
         topic = state['topic_identified']
-        prompt = (
-            f"The student asked: '{question}'\n"
-            f"Topic identified: {topic}\n\n"
-            "Create a simple, step-by-step explanation that a beginner can understand, "
-            "and then provide a memorable real-world analogy to clarify the concept.\n\n"
-            "Format your response as:\n"
-            "Explanation: <your explanation>\n"
-            "Analogy: <your analogy>"
-        )
+        prompt = create_explanation_prompt.format(question=question, topic=topic) + "\n" + add_analogy_prompt.format(question=question, explanation=state.get("explanation", ""), subject=self.subject)
         response = self.llm.invoke([
             SystemMessage(content=self.system_prompt),
             HumanMessage(content=prompt)
@@ -210,41 +203,42 @@ class IIT_Teacher():
         state["analogy"] = analogy
         return state
 
-    # --- Node 4: Finalize the response ---
-    def _finalize_response(self,state:AgentState)->AgentState:
-        """
-        Combines all generated parts (explanation, analogy) into a single, cohesive response.
-        """
+    # --- Node 4: Finalize the response --- (Streaming and non-streaming)
+    def _finalize_response(self, state:AgentState, stream:bool=False):
         question = state['question']
         topic = state['topic_identified']
         explanation = state['explanation']
         analogy = state["analogy"]
         prompt = finalize_response_prompt.format(question=question, topic=topic, explanation=explanation, analogy=analogy)
-        response = self.llm.invoke([
-            SystemMessage(content=self.system_prompt),
-            HumanMessage(content=prompt)
-        ])
-        state["final_response"] = response.content
-        return state
+        if stream:
+            # Stream the final response from the LLM
+            for chunk in self.llm.stream([
+                SystemMessage(content=self.system_prompt),
+                HumanMessage(content=prompt)
+            ]):
+                if chunk.content:
+                    yield chunk.content
+        else:
+            response = self.llm.invoke([
+                SystemMessage(content=self.system_prompt),
+                HumanMessage(content=prompt)
+            ])
+            state["final_response"] = response.content
+            return state
 
     # This method serves as the entry point for the agent to process a student's question.
     # It initializes the state and invokes the graph to get the final response.
+    # For non-streaming use
     def teach(self, question:str)->str:
         """
         The main entry point for the agent to answer a question.
         Now includes caching and optional memory usage.
-        
-        Args:
-            question (str): The student's question.
-            
-        Returns:
-            str: The final, formatted response from the agent.
         """
-        # Check cache first
-        cache_key = (self.subject, question.strip().lower())
-        if cache_key in self._response_cache:
-            return self._response_cache[cache_key]
-
+        # Use a string as the cache key
+        cache_key = f"{self.subject}:{question.strip().lower()}"
+        cached = redis_client.get(cache_key)
+        if cached:
+            return cached.decode('utf-8')
         # Define the initial state for the graph.
         inital_state = {
             "messages" : [],
@@ -263,11 +257,40 @@ class IIT_Teacher():
 
         # Instead, just call the graph directly:
         result = self.graph.invoke(inital_state)
-
         final_response = result['final_response']
-        # Store in cache
-        self._response_cache[cache_key] = final_response
+        # Store in cache with 24-hour expiry
+        redis_client.set(cache_key, final_response, ex=86400)
         return final_response
+
+    def teach_stream(self, question: str):
+        # Use a string as the cache key
+        cache_key = f"{self.subject}:{question.strip().lower()}"
+        cached = redis_client.get(cache_key)
+        if cached:
+            yield cached.decode('utf-8')
+            return
+        
+        # Define the initial state for the graph.
+        inital_state = {
+            "messages": [],
+            "question": question,
+            "topic_identified": "",
+            "explanation": "",
+            "analogy": "",
+            "final_response": ""
+        }
+
+        # Initialize the state and invoke the graph.
+        state = self.graph.invoke(inital_state)
+        full_response = ""
+
+        for chunk in self._finalize_response(state, stream=True):
+            full_response += chunk
+            yield chunk
+
+        # Store in cache with 24-hour expiry
+        redis_client.set(cache_key, full_response, ex=86400)
+      
 
 
 # --- Main execution block ---

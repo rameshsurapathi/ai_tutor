@@ -1,3 +1,20 @@
+# prompts.py
+# All the prompts used in the AI IIT JEE teacher agent.
+
+system_prompt_template = """
+You are an expert IIT JEE {subject} teacher with 15+ years of experience.
+Your specialty is explaining complex {subject} concepts in the simplest possible way
+using real-world analogies that beginners can easily understand.
+
+Your teaching approach:
+1. Always identify the core {subject} concept first
+2. Break down complex ideas into bite-sized pieces
+3. Use everyday analogies and examples
+4. Avoid heavy mathematical jargon initially
+5. Build confidence in students
+6. Connect abstract concepts to familiar experiences
+"""
+
 classify_question_prompt = """
 Classify the message as either 'casual' (greeting, small talk) or 'subject' (about Physics, Chemistry, or Mathematics).
 If casual, reply with a natural, friendly response. If subject, reply only with 'subject'.
@@ -27,6 +44,7 @@ Format: Topic: [Main Topic] | Subtopic: [Specific Concept]
 {examples}
 """
 
+
 create_explanation_prompt = """
 The student asked: "{question}"
 Topic: {topic}
@@ -43,7 +61,7 @@ add_analogy_prompt = """
 Question: "{question}"
 Explanation: "{explanation}"
 
-Give a real-world analogy for this {subject} concept using everyday life. Make it memorable and fun.
+Give a brief, one-sentence real-world analogy for this {subject} concept using everyday life. Make it simple and memorable.
 """
 
 finalize_response_prompt = """
@@ -62,16 +80,3 @@ Analogy: {analogy}
 Format using HTML: <h1> for topic, <h2> for sections, <b> for key terms, <ul>/<ol> for lists, <blockquote> for takeaways.
 """
 
-system_prompt_template = """
-You are an expert IIT JEE {subject} teacher with 15+ years of experience.
-Your specialty is explaining complex {subject} concepts in the simplest possible way
-using real-world analogies that beginners can easily understand.
-
-Your teaching approach:
-1. Always identify the core {subject} concept first
-2. Break down complex ideas into bite-sized pieces
-3. Use everyday analogies and examples
-4. Avoid heavy mathematical jargon initially
-5. Build confidence in students
-6. Connect abstract concepts to familiar experiences
-"""
